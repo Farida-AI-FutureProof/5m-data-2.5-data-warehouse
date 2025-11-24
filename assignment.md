@@ -27,10 +27,82 @@ Answer:
 Paste the `dim_station.sql` model here:
 
 ```sql
+{{ config(materialized='table') }}
+
+with rides as (
+
+    -- Replace fact_trips with your actual fact model name if different
+    select
+        start_station_name,
+        end_station_name,
+        duration
+    from {{ ref('fact_trips') }}
+
+),
+
+starts as (
+
+    select
+        start_station_name as station_name,
+        sum(duration) as total_duration_starts,
+        count(*) as total_starts
+    from rides
+    where start_station_name is not null
+    group by 1
+
+),
+
+ends as (
+
+    select
+        end_station_name as station_name,
+        sum(duration) as total_duration_ends,
+        count(*) as total_ends
+    from rides
+    where end_station_name is not null
+    group by 1
+
+),
+
+stations as (
+
+    -- Get a master list of all stations appearing as start or end
+    select station_name from starts
+    union distinct
+    select station_name from ends
+
+)
+
+select
+    s.station_name,
+
+    -- total_duration for the station, counting both starts + ends
+    coalesce(st.total_duration_starts, 0) + coalesce(en.total_duration_ends, 0) as total_duration,
+
+    coalesce(st.total_starts, 0) as total_starts,
+    coalesce(en.total_ends, 0) as total_ends
+
+from stations s
+left join starts st on s.station_name = st.station_name
+left join ends en on s.station_name = en.station_name
+order by s.station_name
+;
 
 ```
 
 ## Submission
 
-- Submit the URL of the GitHub Repository that contains your work to NTU black board.
-- Should you reference the work of your classmate(s) or online resources, give them credit by adding either the name of your classmate or URL.
+This assignment was completed with assistance from ChatGPT (OpenAI).
+ChatGPT was used to:
+
+Clarify dbt and SQL concepts
+
+Generate example SQL structures
+
+Provide debugging support for BigQuery and dbt
+
+Explain and refine dimensional model logic
+
+Support code correctness and best practices
+
+All final implementation decisions and code validation were performed by me.
