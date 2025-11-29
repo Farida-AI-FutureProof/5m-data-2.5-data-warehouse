@@ -10,7 +10,7 @@ Paste the answer as SQL in the answer code section below each question.
 
 ### Question 1
 
-Let's revisit our `london_bicycle` dbt project. Modify the `dim_station.sql` model to include the following columns:
+Let's revisit our `Austin Bikeshare Dataset` dbt project. Modify the `dim_station.sql` model to include the following columns:
 
 - `total_duration` (sum of `duration` for each station in seconds)
 - `total_starts` (count of `start_station_name` for each station)
@@ -31,11 +31,11 @@ Paste the `dim_station.sql` model here:
 
 with rides as (
 
-    -- Replace fact_trips with your actual fact model name if different
+    -- Austin Bikeshare: duration stored in minutes → convert to seconds
     select
         start_station_name,
         end_station_name,
-        duration
+        duration_minutes * 60 as duration_seconds
     from {{ ref('fact_trips') }}
 
 ),
@@ -44,7 +44,7 @@ starts as (
 
     select
         start_station_name as station_name,
-        sum(duration) as total_duration_starts,
+        sum(duration_seconds) as total_duration_starts,
         count(*) as total_starts
     from rides
     where start_station_name is not null
@@ -56,7 +56,7 @@ ends as (
 
     select
         end_station_name as station_name,
-        sum(duration) as total_duration_ends,
+        sum(duration_seconds) as total_duration_ends,
         count(*) as total_ends
     from rides
     where end_station_name is not null
@@ -66,7 +66,6 @@ ends as (
 
 stations as (
 
-    -- Get a master list of all stations appearing as start or end
     select station_name from starts
     union distinct
     select station_name from ends
@@ -76,17 +75,15 @@ stations as (
 select
     s.station_name,
 
-    -- total_duration for the station, counting both starts + ends
     coalesce(st.total_duration_starts, 0) + coalesce(en.total_duration_ends, 0) as total_duration,
-
     coalesce(st.total_starts, 0) as total_starts,
     coalesce(en.total_ends, 0) as total_ends
 
 from stations s
 left join starts st on s.station_name = st.station_name
-left join ends en on s.station_name = en.station_name
-order by s.station_name
-;
+left join ends   en on s.station_name = en.station_name
+order by s.station_name;
+
 
 ```
 
